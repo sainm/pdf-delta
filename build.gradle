@@ -1,0 +1,6 @@
+subprojects {
+    apply plugin: 'java'
+    java { sourceCompatibility = JavaVersion.VERSION_25 }
+    repositories { mavenCentral() }
+    test { useJUnitPlatform() }
+}

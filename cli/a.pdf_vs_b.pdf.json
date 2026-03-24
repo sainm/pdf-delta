@@ -1,0 +1,59 @@
+{
+  "jobId" : "b6d4de1f-d4c5-4542-a630-d16b0449551a",
+  "items" : [ ],
+  "summary" : {
+    "totalDiffs" : 0,
+    "critical" : 0,
+    "major" : 0,
+    "minor" : 0,
+    "info" : 0
+  },
+  "ocrFailedPages" : [ ],
+  "imageComparisonSummary" : {
+    "imageLikePages" : 1,
+    "visualDiffPages" : 0,
+    "visualDiffItems" : 0,
+    "partialSuccessPages" : 0
+  },
+  "visualDiffItems" : [ ],
+  "pageSummaries" : [ {
+    "pageNumber" : 1,
+    "pageType" : "MIXED",
+    "ocrAttempted" : true,
+    "ocrSucceeded" : true,
+    "hasTextDiffs" : false,
+    "hasVisualDiffs" : false,
+    "status" : "OK"
+  } ],
+  "warnings" : [ ],
+  "optionsUsed" : {
+    "includePages" : [ ],
+    "excludeRegions" : [ ],
+    "anchors" : [ ],
+    "fuzzyThreshold" : 0.85,
+    "positionTolerance" : 5.0,
+    "reportLevels" : [ ],
+    "ignoreWhitespace" : true,
+    "ignoreNumberFormat" : true,
+    "ignoreDateFormat" : true,
+    "ignoreHeaderFooter" : true,
+    "ignoreWatermark" : true,
+    "enableVisualDiff" : true,
+    "visualDiffThreshold" : 0.01,
+    "renderDpi" : 150,
+    "sectionNumberMode" : "IGNORE",
+    "ocrOptions" : {
+      "providerType" : "AUTO",
+      "language" : "zh",
+      "remoteEndpoint" : null,
+      "remoteApiKey" : null,
+      "modelDir" : null,
+      "enableCache" : true,
+      "cacheDir" : "C:\\Users\\liuha/.pdf-compare/ocr-cache",
+      "cacheScope" : "PAGE",
+      "minConfidence" : 0.6
+    }
+  },
+  "sourceBytesA" : "JVBERi0xLjYKJfbk/N8KMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovVmVyc2lvbiAvMS42Ci9QYWdlcyAyIDAgUgo+PgplbmRvYmoKNyAwIG9iago8PAovTGVuZ3RoIDQ0Ci9GaWx0ZXIgL0ZsYXRlRGVjb2RlCj4+CnN0cmVhbQ0KeJxzCuHSdzNUMDRSCEnjMjQwUDAH4pAULg2P1JycfE2FkCwu1xAuAJ/xCKgNCmVuZHN0cmVhbQplbmRvYmoKOCAwIG9iago8PAovTGVuZ3RoIDE4NwovVHlwZSAvT2JqU3RtCi9OIDUKL0ZpbHRlciAvRmxhdGVEZWNvZGUKL0ZpcnN0IDI3Cj4+CnN0cmVhbQ0KeJxVjt0KgkAQhV/lPEHj+osgQkoRRBAWdCFemC6yELvhatTbNyr0czED55szM8eFAw++Cx/CixFABCFCiEggSej8ukvQse6kBe1Va1F6vFCgAuVm1AME0vTfCTrIVtWZeaJ0Vg6mCoXLPYqnXk22XvKuO5+iQloz9g2/8BeQGz3w3CKa9fJgy5Dj/QDBOb9yCTC76DReh1lOUICy2splspO3hxxUU4M2ujGt0h3oovRaW/UBfPANIw1MzQ0KZW5kc3RyZWFtCmVuZG9iago5IDAgb2JqCjw8Ci9MZW5ndGggMzMKL1Jvb3QgMSAwIFIKL0lEIFs8MDgxNDFBQTQ4QUIyMzczNDQzMzdBN0M1MkM3ODlGOUY+IDwwODE0MUFBNDhBQjIzNzM0NDMzN0E3QzUyQzc4OUY5Rj5dCi9UeXBlIC9YUmVmCi9TaXplIDEwCi9JbmRleCBbMCA5XQovVyBbMSAxIDFdCi9GaWx0ZXIgL0ZsYXRlRGVjb2RlCj4+CnN0cmVhbQ0KeJxjYPjPyM/AxAFEjEwcTEwczEwcLIx+DIyHGQAgsgJfDQplbmRzdHJlYW0KZW5kb2JqCnN0YXJ0eHJlZgo0ODUKJSVFT0YK",
+  "sourceBytesB" : "JVBERi0xLjYKJfbk/N8KMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovVmVyc2lvbiAvMS42Ci9QYWdlcyAyIDAgUgo+PgplbmRvYmoKNyAwIG9iago8PAovTGVuZ3RoIDQ0Ci9GaWx0ZXIgL0ZsYXRlRGVjb2RlCj4+CnN0cmVhbQ0KeJxzCuHSdzNUMDRSCEnjMjQwUDAH4pAULg2P1JycfE2FkCwu1xAuAJ/xCKgNCmVuZHN0cmVhbQplbmRvYmoKOCAwIG9iago8PAovTGVuZ3RoIDE4NwovVHlwZSAvT2JqU3RtCi9OIDUKL0ZpbHRlciAvRmxhdGVEZWNvZGUKL0ZpcnN0IDI3Cj4+CnN0cmVhbQ0KeJxVjt0KgkAQhV/lPEHj+osgQkoRRBAWdCFemC6yELvhatTbNyr0czED55szM8eFAw++Cx/CixFABCFCiEggSej8ukvQse6kBe1Va1F6vFCgAuVm1AME0vTfCTrIVtWZeaJ0Vg6mCoXLPYqnXk22XvKuO5+iQloz9g2/8BeQGz3w3CKa9fJgy5Dj/QDBOb9yCTC76DReh1lOUICy2splspO3hxxUU4M2ujGt0h3oovRaW/UBfPANIw1MzQ0KZW5kc3RyZWFtCmVuZG9iago5IDAgb2JqCjw8Ci9MZW5ndGggMzMKL1Jvb3QgMSAwIFIKL0lEIFs8MDgxNDFBQTQ4QUIyMzczNDQzMzdBN0M1MkM3ODlGOUY+IDwwODE0MUFBNDhBQjIzNzM0NDMzN0E3QzUyQzc4OUY5Rj5dCi9UeXBlIC9YUmVmCi9TaXplIDEwCi9JbmRleCBbMCA5XQovVyBbMSAxIDFdCi9GaWx0ZXIgL0ZsYXRlRGVjb2RlCj4+CnN0cmVhbQ0KeJxjYPjPyM/AxAFEjEwcTEwczEwcLIx+DIyHGQAgsgJfDQplbmRzdHJlYW0KZW5kb2JqCnN0YXJ0eHJlZgo0ODUKJSVFT0YK"
+}

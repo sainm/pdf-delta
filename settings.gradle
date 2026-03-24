@@ -1,0 +1,2 @@
+rootProject.name = 'pdf-delta'
+include 'core', 'cli', 'web', 'mcp', 'ocr-paddle', 'ocr-remote', 'ai'

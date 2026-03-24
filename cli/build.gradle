@@ -1,0 +1,19 @@
+dependencies {
+    implementation project(':core')
+    implementation 'info.picocli:picocli:4.7.5'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testImplementation 'org.assertj:assertj-core:3.25.3'
+    testImplementation 'org.apache.pdfbox:pdfbox:3.0.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+test {
+    jvmArgs '-Djava.awt.headless=true'
+    useJUnitPlatform()
+}
+
+jar {
+    manifest { attributes 'Main-Class': 'org.sainm.cli.PdfCompareCli' }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from { configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
+}

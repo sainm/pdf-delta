@@ -1,0 +1,5 @@
+org.sainm.normalizer.WhitespaceNormalizer
+org.sainm.normalizer.GlyphNormalizer
+org.sainm.normalizer.NumberNormalizer
+org.sainm.normalizer.DateNormalizer
+org.sainm.normalizer.UnitNormalizer
