@@ -119,14 +119,18 @@ AI 增强实现：
 
 ### 环境要求
 
-- JDK 25
+- JDK 17
 - Gradle Wrapper
 - Windows 环境下如果启用本地 Paddle OCR，需要 `local-ocr` 中的本地库可被加载
 
 根工程 `build.gradle` 指定了：
 
 ```gradle
-java { sourceCompatibility = JavaVersion.VERSION_25 }
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
 ```
 
 ### 编译
@@ -713,6 +717,265 @@ public class Demo {
     }
 }
 ```
+## 11. 最终结果输出示例
+
+基于上面的 `Demo`，控制台中拿到的比较结果通常会类似这样：
+
+```text
+jobId = 9f4d9b62-7d25-4c9a-bd1d-1f8b4f9e2a31
+diffs = 3
+summary = DiffSummary[totalDiffs=3, critical=0, major=1, minor=2, info=0]
+```
+
+如果你希望把比较结果输出成 PDF 文件，推荐使用 `pdf-image-marked` 格式：
+
+```java
+import org.sainm.model.CompareOptions;
+import org.sainm.model.CompareRequest;
+import org.sainm.model.CompareResult;
+import org.sainm.model.PdfSource;
+import org.sainm.pipeline.PdfComparator;
+import org.sainm.spi.ReportRenderer;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ServiceLoader;
+
+public class DemoWithOutput {
+    public static void main(String[] args) throws Exception {
+        CompareOptions options = CompareOptions.defaults();
+
+        CompareResult result = new PdfComparator().compare(
+            new CompareRequest(
+                new PdfSource.FilePath(Path.of("a.pdf")),
+                new PdfSource.FilePath(Path.of("b.pdf")),
+                options
+            )
+        );
+
+        ReportRenderer renderer = ServiceLoader.load(ReportRenderer.class)
+            .stream()
+            .map(ServiceLoader.Provider::get)
+            .filter(it -> it.formatId().equals("pdf-image-marked"))
+            .findFirst()
+            .orElseThrow(() -> new IllegalStateException("pdf-image-marked renderer not found"));
+
+        byte[] bytes = renderer.render(result, options);
+        Files.write(Path.of("a_vs_b_diff.pdf"), bytes);
+
+        System.out.println("report written to a_vs_b_diff.pdf");
+    }
+}
+```
+
+运行后会生成结果文件：
+
+```text
+a_vs_b_diff.pdf
+```
+
+这个 PDF 会把 A / B 两份文档并排展示，并在页面上标出检测到的差异区域。
+
+如果你希望把每一种输出方式都写成明确示例，可以按下面理解：
+
+### 11.1 文本比较结果的 5 种 PDF 出力方式
+
+这些模式对应 `DiffReportPdfGenerator` 的 `ReportMode`，适合“文本型 PDF”的差异展示。
+
+#### 1. `TEXT_DIFF`
+
+适合看逐段、逐行的文本差异。
+
+```java
+import org.sainm.report.DiffReportPdfGenerator;
+import org.sainm.report.ReportMode;
+
+byte[] bytes = new DiffReportPdfGenerator()
+    .mode(ReportMode.TEXT_DIFF)
+    .generate(result, result.getSourceBytesA(), result.getSourceBytesB());
+
+Files.write(Path.of("text-diff.pdf"), bytes);
+```
+
+输出文件示例：
+
+```text
+text-diff.pdf
+```
+
+效果示例：
+
+```text
+Page 1
+[-合同金额：100000-]
+[+合同金额：120000+]
+```
+
+#### 2. `SIDE_BY_SIDE`
+
+适合左右对照看 A / B 两份文本。
+
+```java
+byte[] bytes = new DiffReportPdfGenerator()
+    .mode(ReportMode.SIDE_BY_SIDE)
+    .generate(result, result.getSourceBytesA(), result.getSourceBytesB());
+
+Files.write(Path.of("side-by-side.pdf"), bytes);
+```
+
+输出文件示例：
+
+```text
+side-by-side.pdf
+```
+
+效果示例：
+
+```text
+Left : 合同金额：100000
+Right: 合同金额：120000
+```
+
+#### 3. `SINGLE_PAGE`
+
+适合把差异叠加到单页视图中查看。
+
+```java
+byte[] bytes = new DiffReportPdfGenerator()
+    .mode(ReportMode.SINGLE_PAGE)
+    .generate(result, result.getSourceBytesA(), result.getSourceBytesB());
+
+Files.write(Path.of("single-page.pdf"), bytes);
+```
+
+输出文件示例：
+
+```text
+single-page.pdf
+```
+
+效果示例：
+
+```text
+Page 1 overlay
+[changed] 合同金额：100000 -> 120000
+```
+
+#### 4. `DUAL_PAGE`
+
+适合把两页并排放在一个 PDF 页面里比较。
+
+```java
+byte[] bytes = new DiffReportPdfGenerator()
+    .mode(ReportMode.DUAL_PAGE)
+    .generate(result, result.getSourceBytesA(), result.getSourceBytesB());
+
+Files.write(Path.of("dual-page.pdf"), bytes);
+```
+
+输出文件示例：
+
+```text
+dual-page.pdf
+```
+
+效果示例：
+
+```text
+| Page A | Page B |
+| 100000 | 120000 |
+```
+
+#### 5. `TEXT_LAYOUT`
+
+适合尽量保留原始文本布局后再标出差异。
+
+```java
+byte[] bytes = new DiffReportPdfGenerator()
+    .mode(ReportMode.TEXT_LAYOUT)
+    .generate(result, result.getSourceBytesA(), result.getSourceBytesB());
+
+Files.write(Path.of("text-layout.pdf"), bytes);
+```
+
+输出文件示例：
+
+```text
+text-layout.pdf
+```
+
+效果示例：
+
+```text
+第一条  金额：100000
+第一条  金额：120000   <- changed
+```
+
+### 11.2 文本比较结果的 HTML 出力方式
+
+这个模式也是文本比较的一种展示方式，但输出的是 HTML，不是 PDF。
+
+#### 6. `HTML`
+
+```java
+byte[] bytes = new DiffReportPdfGenerator()
+    .mode(ReportMode.HTML)
+    .generate(result, result.getSourceBytesA(), result.getSourceBytesB());
+
+Files.write(Path.of("text-diff.html"), bytes);
+```
+
+输出文件示例：
+
+```text
+text-diff.html
+```
+
+效果示例：
+
+```html
+<span class="delete">100000</span>
+<span class="insert">120000</span>
+```
+
+### 11.3 图像比较结果的 1 种 PDF 出力方式
+
+图像型 PDF 当前推荐使用 `ReportRenderer` 的 `pdf-image-marked`。
+
+#### 7. `pdf-image-marked`
+
+```java
+import org.sainm.spi.ReportRenderer;
+import java.util.ServiceLoader;
+
+ReportRenderer renderer = ServiceLoader.load(ReportRenderer.class)
+    .stream()
+    .map(ServiceLoader.Provider::get)
+    .filter(it -> it.formatId().equals("pdf-image-marked"))
+    .findFirst()
+    .orElseThrow(() -> new IllegalStateException("pdf-image-marked renderer not found"));
+
+byte[] bytes = renderer.render(result, options);
+Files.write(Path.of("image-marked-diff.pdf"), bytes);
+```
+
+输出文件示例：
+
+```text
+image-marked-diff.pdf
+```
+
+效果示例：
+
+```text
+Page A and Page B rendered side by side
+[red box] text/table diff area
+[blue box] visual diff area
+```
+
+### 11.4 其他对外格式
+
+`pdf-annotated` 也已经注册为对外格式，但当前实现还更接近占位版本，不建议作为主输出格式。
 
 如果后续要继续完善这个工程，最值得优先补强的点通常会是：
 
