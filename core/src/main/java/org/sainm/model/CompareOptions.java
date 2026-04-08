@@ -26,14 +26,20 @@ public final class CompareOptions {
 
     public static CompareOptions defaults() { return new CompareOptions(); }
 
+    public ExtractionMode getExtractionMode() { return extractionMode; }
+    public void setExtractionMode(ExtractionMode extractionMode) { this.extractionMode = extractionMode; }
     public Set<PageRange> getIncludePages() { return includePages; }
+    public void setIncludePages(Set<PageRange> includePages) { this.includePages = includePages; }
     public Set<Region> getExcludeRegions() { return excludeRegions; }
+    public void setExcludeRegions(Set<Region> excludeRegions) { this.excludeRegions = excludeRegions; }
     public List<Anchor> getAnchors() { return anchors; }
+    public void setAnchors(List<Anchor> anchors) { this.anchors = anchors; }
     public double getFuzzyThreshold() { return fuzzyThreshold; }
     public void setFuzzyThreshold(double fuzzyThreshold) { this.fuzzyThreshold = fuzzyThreshold; }
     public double getPositionTolerance() { return positionTolerance; }
     public void setPositionTolerance(double positionTolerance) { this.positionTolerance = positionTolerance; }
     public Set<DiffSeverity> getReportLevels() { return reportLevels; }
+    public void setReportLevels(Set<DiffSeverity> reportLevels) { this.reportLevels = reportLevels; }
     public boolean isIgnoreWhitespace() { return ignoreWhitespace; }
     public void setIgnoreWhitespace(boolean ignoreWhitespace) { this.ignoreWhitespace = ignoreWhitespace; }
     public boolean isIgnoreNumberFormat() { return ignoreNumberFormat; }

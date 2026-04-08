@@ -12,7 +12,6 @@ import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.ServiceLoader;
 
@@ -31,7 +30,7 @@ final class ImagePdfExtractor implements ContentExtractor {
 
     @Override
     public List<PageContent> extract(PdfSource source, CompareOptions options) {
-        var provider = selectProvider();
+        var provider = selectProvider(options.getOcrOptions());
         try (PDDocument doc = TextPdfExtractor.loadDocument(source)) {
             var renderer = new PDFRenderer(doc);
             List<PageContent> pages = new ArrayList<>();
@@ -77,13 +76,11 @@ final class ImagePdfExtractor implements ContentExtractor {
         return block;
     }
 
-    private OcrProvider selectProvider() {
-        var available = providers.stream()
-            .filter(OcrProvider::isAvailable)
-            .sorted(Comparator.comparingInt(OcrProvider::priority).reversed()
-                .thenComparing(OcrProvider::providerId))
-            .toList();
-        if (available.isEmpty()) return null;
-        return available.get(0);
+    private OcrProvider selectProvider(OcrOptions options) {
+        try {
+            return OcrProviderResolver.resolve(providers, options);
+        } catch (RuntimeException e) {
+            return null;
+        }
     }
 }

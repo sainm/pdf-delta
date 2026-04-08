@@ -1,211 +1,261 @@
 # pdf-delta
 
-`pdf-delta` 是一个面向 PDF 文档比对的多模块 Java 工程。它的核心能力是把两个 PDF 解析为文本块、表格块和图像页，再做对齐、差异识别和报告输出，适合做合同、报表、扫描件、图片型 PDF 的差异分析。
+`pdf-delta` is a multi-module Java project for comparing two PDF files and generating structured diff reports.
 
-当前工程已经提供 4 类使用方式：
+It is suitable for:
 
-- `core`：程序内嵌调用的核心比较 API
-- `cli`：命令行比较工具
-- `web`：HTTP 文件上传比较服务
-- `mcp`：MCP Tool Server，方便被 Agent / LLM 工具链调用
+- text-first PDF comparison
+- table diff detection
+- image-like page comparison
+- report export to JSON, HTML, and PDF
 
-同时工程还拆分了可插拔扩展模块：
+The project currently contains these modules:
 
-- `ocr-paddle`：本地 Paddle OCR
-- `ocr-remote`：远程 OCR 适配层
-- `ai`：AI 增强能力，如 OCR 修正、差异摘要
+- `core`: comparison pipeline, models, renderers, and SPI
+- `cli`: command-line entrypoint
+- `web`: Spring Boot HTTP service
+- `mcp`: MCP tool server
+- `ocr-paddle`: local Paddle OCR provider
+- `ocr-remote`: remote OCR provider
+- `ai`: AI-based enhancement hooks
 
-## 1. 工程定位
-
-从代码实现看，这个工程的主链路是：
-
-1. 读取 PDF
-2. 提取文本页 / 图像页内容
-3. 对提取结果做预处理和归一化
-4. 重建表格结构
-5. 组织成逻辑文档
-6. 执行块级对齐
-7. 生成文本差异、表格差异、视觉差异
-8. 输出 JSON / HTML / PDF 报告
-
-核心入口类是：
-
-- `org.sainm.pipeline.PdfComparator`
-- `org.sainm.model.CompareRequest`
-- `org.sainm.model.CompareOptions`
-- `org.sainm.model.CompareResult`
-
-## 2. 工程结构
+## Project Layout
 
 ```text
 pdf-delta
-├─ core         核心比较流程、模型、报告渲染、SPI
-├─ cli          Picocli 命令行入口
-├─ web          Spring Boot HTTP 服务
-├─ mcp          MCP Server
-├─ ocr-paddle   本地 Paddle OCR Provider
-├─ ocr-remote   远程 OCR Provider
-├─ ai           AI 增强实现
-└─ local-ocr    本地 Paddle 推理库与依赖文件
+|- core
+|- cli
+|- web
+|- mcp
+|- ocr-paddle
+|- ocr-remote
+|- ai
+`- local-ocr
 ```
 
-各模块职责如下。
+## Core Flow
 
-### `core`
+The main entrypoint is `org.sainm.pipeline.PdfComparator`.
 
-核心领域模块，包含：
+At a high level, the pipeline does this:
 
-- `model`：比较请求、结果、差异项、OCR 配置等数据结构
-- `extractor`：文本提取、图像页提取、OCR 装配
-- `preprocessor`：页面预处理
-- `normalizer`：文本归一化
-- `table`：表格聚类与重建
-- `document`：逻辑文档组织
-- `alignment`：块对齐
-- `diff`：差异计算和严重级别分类
-- `report`：JSON / HTML / PDF 报告生成
-- `spi`：OCR、报告、归一化、AI 等扩展接口
+1. Read PDF A and PDF B
+2. Extract page content
+3. Normalize text and structure
+4. Align blocks
+5. Generate text/table/visual diffs
+6. Return `CompareResult`
+7. Optionally render the result to JSON, HTML, or PDF
 
-### `cli`
+## Build Requirements
 
-命令行入口，主类：
+- Java 17
+- Gradle
 
-- `org.sainm.cli.PdfCompareCli`
-- `org.sainm.cli.CompareCommand`
+The root [`build.gradle`](/D:/pdf-delta/build.gradle) configures Java 17 toolchains.
 
-### `web`
-
-Spring Boot Web 服务，主类：
-
-- `org.sainm.web.PdfCompareApplication`
-
-控制器：
-
-- `org.sainm.web.CompareController`
-
-### `mcp`
-
-MCP Server，主类：
-
-- `org.sainm.mcp.PdfCompareMcpServer`
-
-已注册工具：
-
-- `compare_pdfs`
-- `get_diff_summary`
-- `get_page_diff`
-
-### `ocr-paddle`
-
-本地 OCR 实现：
-
-- `org.sainm.ocr.paddle.PaddleOcrProvider`
-
-### `ocr-remote`
-
-远程 OCR 实现：
-
-- `org.sainm.ocr.remote.RemoteOcrProvider`
-
-### `ai`
-
-AI 增强实现：
-
-- `org.sainm.ai.ClaudeOcrEnhancer`
-- `org.sainm.ai.ClaudeDiffInterpreter`
-- `org.sainm.ai.ClaudeTableStructureRecognizer`
-
-## 3. 构建与运行
-
-### 环境要求
-
-- JDK 25
-- Gradle Wrapper
-- Windows 环境下如果启用本地 Paddle OCR，需要 `local-ocr` 中的本地库可被加载
-
-根工程 `build.gradle` 指定了：
-
-```gradle
-java { sourceCompatibility = JavaVersion.VERSION_25 }
-```
-
-### 编译
+### Build
 
 ```bash
-./gradlew build
+gradle build
 ```
 
-Windows PowerShell：
-
-```powershell
-.\gradlew.bat build
-```
-
-### 运行测试
+### Test
 
 ```bash
-./gradlew test
+gradle test
 ```
 
-## 4. 使用方式
+Note:
+This repository currently includes `gradle/wrapper` files, but the launcher scripts `gradlew` / `gradlew.bat` are not present yet. If you want wrapper-based commands in the README later, add those scripts first.
 
-## 4.1 CLI
+## Output Formats
 
-CLI 子命令为 `compare`。
+There are two different "output" concepts in this repository:
 
-示例：
+1. External artifact formats exposed through `ReportRenderer`
+2. Internal text-diff PDF layout modes exposed through `DiffReportPdfGenerator`
 
-```bash
-java -jar cli/build/libs/cli-*.jar compare a.pdf b.pdf --format json
-```
+### 1. ReportRenderer Formats
 
-输出文件命名规则来自 `CompareCommand`：
-
-```text
-{fileA名称}_vs_{fileB名称}.{format}
-```
-
-例如：
-
-```text
-a.pdf_vs_b.pdf.json
-```
-
-支持的 `--format`：
+These are the format ids currently exposed through CLI / Web / `ServiceLoader`-based report rendering:
 
 - `json`
 - `html`
 - `pdf-annotated`
 - `pdf-image-marked`
 
-多个格式可逗号分隔：
+Practical guidance:
+
+- `json`: best for downstream systems and automated checks
+- `html`: best for quickly reviewing text diffs in a browser
+- `pdf-image-marked`: best current PDF output for human review
+- `pdf-annotated`: available as a format id, but currently less complete than `pdf-image-marked`
+
+If your goal is "compare two text PDFs and export a PDF report" through CLI or Web, prefer `pdf-image-marked`.
+
+### 2. Text Diff PDF Layout Modes
+
+For text-focused comparison inside `core`, there is also a separate PDF generation path:
+
+- `TEXT_DIFF`
+- `SIDE_BY_SIDE`
+- `SINGLE_PAGE`
+- `DUAL_PAGE`
+- `HTML`
+- `TEXT_LAYOUT`
+
+These modes are driven by:
+
+- [`DiffReportPdfGenerator.java`](/D:/pdf-delta/core/src/main/java/org/sainm/report/DiffReportPdfGenerator.java)
+- [`ReportMode.java`](/D:/pdf-delta/core/src/main/java/org/sainm/report/ReportMode.java)
+
+Important:
+`DUAL_PAGE` here refers to an internal PDF layout strategy implemented by [`DualPageRenderer.java`](/D:/pdf-delta/core/src/main/java/org/sainm/report/DualPageRenderer.java). It is not the same thing as the external `pdf-annotated` / `pdf-image-marked` format ids.
+
+## CLI Usage
+
+The CLI main class is `org.sainm.cli.PdfCompareCli`, and the subcommand is `compare`.
+
+General form:
 
 ```bash
-java -jar cli/build/libs/cli-*.jar compare a.pdf b.pdf --format json,html,pdf-image-marked
+java -jar cli/build/libs/cli-*.jar compare <fileA.pdf> <fileB.pdf> [options]
 ```
 
-CLI 当前支持的参数：
+Output file naming convention:
 
-- `--format`：输出格式
-- `--fuzzy-threshold`：模糊匹配阈值，默认 `0.85`
-- `--ignore-whitespace`：是否忽略空白，默认 `true`
-- `--enable-visual-diff`：是否启用视觉差异，默认 `true`
-- `--visual-threshold`：视觉差异阈值，默认 `0.01`
-- `--render-dpi`：PDF 渲染 DPI，默认 `150`
-- `--ocr-min-confidence`：OCR 最低置信度，默认 `0.6`
-- `--ocr-provider`：`AUTO` / `LOCAL_PADDLE` / `REMOTE`
-- `--ocr-language`：默认 `zh`
+```text
+{fileA-name}_vs_{fileB-name}.{format}
+```
 
-CLI 返回码：
+Example:
 
-- `0`：没有差异
-- `1`：存在差异
+```text
+contract-v1.pdf_vs_contract-v2.pdf.json
+```
 
-如果有 OCR 失败页，CLI 会额外打印失败页号；如果检测到图像型页面，还会打印视觉比较摘要。
+### Most Common Text PDF Example
 
-## 4.2 Java API
+If you are mainly comparing text PDFs, start with this:
 
-最核心的程序化调用方式如下：
+```bash
+java -jar cli/build/libs/cli-*.jar compare docs/contract-v1.pdf docs/contract-v2.pdf --format json
+```
+
+This produces:
+
+```text
+contract-v1.pdf_vs_contract-v2.pdf.json
+```
+
+### Export HTML For Review
+
+```bash
+java -jar cli/build/libs/cli-*.jar compare docs/contract-v1.pdf docs/contract-v2.pdf --format html
+```
+
+This produces:
+
+```text
+contract-v1.pdf_vs_contract-v2.pdf.html
+```
+
+### Export PDF Report Directly
+
+For a directly reviewable PDF report:
+
+```bash
+java -jar cli/build/libs/cli-*.jar compare docs/contract-v1.pdf docs/contract-v2.pdf --format pdf-image-marked
+```
+
+This produces:
+
+```text
+contract-v1.pdf_vs_contract-v2.pdf.pdf-image-marked
+```
+
+If you want a PDF result as the primary artifact, this is the current recommended output format.
+
+### Export Multiple Formats In One Run
+
+This is usually the most practical workflow:
+
+```bash
+java -jar cli/build/libs/cli-*.jar compare docs/contract-v1.pdf docs/contract-v2.pdf --format json,html,pdf-image-marked
+```
+
+This gives you:
+
+- machine-readable JSON
+- browser-readable HTML
+- human-review PDF output
+
+### Text PDF Example With Tuned Options
+
+For dense text documents, you may want explicit settings:
+
+```bash
+java -jar cli/build/libs/cli-*.jar compare docs/a.pdf docs/b.pdf \
+  --format json,html,pdf-image-marked \
+  --fuzzy-threshold 0.90 \
+  --ignore-whitespace true \
+  --enable-visual-diff true \
+  --visual-threshold 0.01 \
+  --render-dpi 150
+```
+
+Windows PowerShell version:
+
+```powershell
+java -jar cli/build/libs/cli-*.jar compare docs/a.pdf docs/b.pdf `
+  --format json,html,pdf-image-marked `
+  --fuzzy-threshold 0.90 `
+  --ignore-whitespace true `
+  --enable-visual-diff true `
+  --visual-threshold 0.01 `
+  --render-dpi 150
+```
+
+### OCR-Related CLI Options
+
+These are mostly useful when the PDF is scanned or image-heavy:
+
+- `--ocr-provider AUTO|LOCAL_PADDLE|REMOTE`
+- `--ocr-language zh`
+- `--ocr-min-confidence 0.6`
+
+For ordinary text PDFs, you usually do not need to tune OCR settings first.
+
+### CLI Options
+
+- `--format`: `json`, `html`, `pdf-annotated`, `pdf-image-marked`
+- `--fuzzy-threshold`: default `0.85`
+- `--ignore-whitespace`: default `true`
+- `--enable-visual-diff`: default `true`
+- `--visual-threshold`: default `0.01`
+- `--render-dpi`: default `150`
+- `--ocr-min-confidence`: default `0.6`
+- `--ocr-provider`: `AUTO`, `LOCAL_PADDLE`, `REMOTE`
+- `--ocr-language`: default `zh`
+
+### CLI Exit Code
+
+- `0`: no diffs
+- `1`: diffs found
+
+## Recommended CLI Workflow For Text PDFs
+
+If your primary use case is text PDF comparison, this is the simplest path:
+
+1. Run with `--format json` to verify the diff structure.
+2. Run with `--format html` for readable inspection.
+3. Run with `--format pdf-image-marked` when you need a deliverable PDF report.
+4. Use `--format json,html,pdf-image-marked` once the workflow is stable.
+
+## Java API Usage
+
+### Minimal Example
 
 ```java
 import org.sainm.model.CompareOptions;
@@ -217,22 +267,55 @@ import org.sainm.pipeline.PdfComparator;
 import java.nio.file.Path;
 
 CompareOptions options = CompareOptions.defaults();
-options.setFuzzyThreshold(0.85);
-options.setIgnoreWhitespace(true);
-options.setEnableVisualDiff(true);
-options.setRenderDpi(150);
-options.getOcrOptions().setLanguage("zh");
 
 CompareRequest request = new CompareRequest(
-    new PdfSource.FilePath(Path.of("a.pdf")),
-    new PdfSource.FilePath(Path.of("b.pdf")),
+    new PdfSource.FilePath(Path.of("docs/contract-v1.pdf")),
+    new PdfSource.FilePath(Path.of("docs/contract-v2.pdf")),
+    options
+);
+
+CompareResult result = new PdfComparator().compare(request);
+System.out.println(result.getSummary());
+```
+
+### Text PDF Example With Explicit Options
+
+```java
+import org.sainm.model.CompareOptions;
+import org.sainm.model.CompareRequest;
+import org.sainm.model.CompareResult;
+import org.sainm.model.PdfSource;
+import org.sainm.pipeline.PdfComparator;
+
+import java.nio.file.Path;
+
+CompareOptions options = CompareOptions.defaults();
+options.setFuzzyThreshold(0.90);
+options.setIgnoreWhitespace(true);
+options.setIgnoreNumberFormat(true);
+options.setIgnoreDateFormat(true);
+options.setEnableVisualDiff(true);
+options.setVisualDiffThreshold(0.01);
+options.setRenderDpi(150);
+
+CompareRequest request = new CompareRequest(
+    new PdfSource.FilePath(Path.of("docs/a.pdf")),
+    new PdfSource.FilePath(Path.of("docs/b.pdf")),
     options
 );
 
 CompareResult result = new PdfComparator().compare(request);
 ```
 
-也可以直接传字节数组：
+### Input Types
+
+`PdfSource` currently supports:
+
+- `PdfSource.FilePath`
+- `PdfSource.Stream`
+- `PdfSource.Bytes`
+
+Example using byte arrays:
 
 ```java
 CompareRequest request = new CompareRequest(
@@ -242,105 +325,11 @@ CompareRequest request = new CompareRequest(
 );
 ```
 
-### `CompareRequest`
+## Render Result To Different Output Types In Java
 
-定义：
+The renderers are loaded by `ServiceLoader` through `ReportRenderer`.
 
-```java
-public record CompareRequest(PdfSource sourceA, PdfSource sourceB, CompareOptions options)
-```
-
-作用：
-
-- 指定对比源 A
-- 指定对比源 B
-- 指定本次比较参数
-
-### `PdfSource`
-
-支持三种输入：
-
-- `PdfSource.FilePath`
-- `PdfSource.Stream`
-- `PdfSource.Bytes`
-
-### `CompareOptions`
-
-默认构造方式：
-
-```java
-CompareOptions.defaults()
-```
-
-当前代码中比较常用的配置项有：
-
-- `fuzzyThreshold`
-- `positionTolerance`
-- `ignoreWhitespace`
-- `ignoreNumberFormat`
-- `ignoreDateFormat`
-- `ignoreHeaderFooter`
-- `ignoreWatermark`
-- `enableVisualDiff`
-- `visualDiffThreshold`
-- `renderDpi`
-- `sectionNumberMode`
-- `ocrOptions`
-
-### `OcrOptions`
-
-OCR 配置项包括：
-
-- `providerType`：`AUTO` / `LOCAL_PADDLE` / `REMOTE`
-- `language`
-- `remoteEndpoint`
-- `remoteApiKey`
-- `modelDir`
-- `enableCache`
-- `cacheDir`
-- `cacheScope`
-- `minConfidence`
-
-### `CompareResult`
-
-比较结果主要包含：
-
-- `jobId`
-- `items`：文本 / 表格差异项列表
-- `summary`：严重级别汇总
-- `ocrFailedPages`
-- `imageComparisonSummary`
-- `visualDiffItems`
-- `pageSummaries`
-- `warnings`
-- `optionsUsed`
-
-### `DiffSummary`
-
-```java
-public record DiffSummary(int totalDiffs, int critical, int major, int minor, int info)
-```
-
-### `DiffItem`
-
-单条差异项包含的主要字段：
-
-- `itemId`
-- `type`
-- `severity`
-- `original`
-- `revised`
-- `confidence`
-- `context`
-- `charDiff`
-- `blockType`
-- `tableDiff`
-
-### 结果渲染
-
-报告渲染通过 `ServiceLoader` 加载 `ReportRenderer` 实现。
-
-接口：
+Interface:
 
 ```java
 public interface ReportRenderer {
@@ -349,375 +338,257 @@ public interface ReportRenderer {
 }
 ```
 
-当前已注册 renderer：
-
-- `json`
-- `html`
-- `pdf-annotated`
-- `pdf-image-marked`
-
-## 4.3 Web API
-
-`web` 模块提供 Spring Boot 服务，默认端口 `8080`。
-
-配置文件：
-
-```yaml
-server:
-  port: 8080
-spring:
-  servlet:
-    multipart:
-      max-file-size: 200MB
-      max-request-size: 400MB
-```
-
-启动：
-
-```bash
-./gradlew :web:bootRun
-```
-
-### 1. 同步比较
-
-`POST /api/compare`
-
-`multipart/form-data` 参数：
-
-- `fileA`
-- `fileB`
-- `options`：可选，JSON 字符串，对应 `CompareOptions`
-
-返回：
-
-- `CompareResult` JSON
-
-`curl` 示例：
-
-```bash
-curl -X POST "http://localhost:8080/api/compare" \
-  -F "fileA=@a.pdf" \
-  -F "fileB=@b.pdf"
-```
-
-### 2. 同步生成报告文件
-
-`POST /api/compare/artifact/{format}`
-
-例如：
-
-```bash
-curl -X POST "http://localhost:8080/api/compare/artifact/pdf-image-marked" \
-  -F "fileA=@a.pdf" \
-  -F "fileB=@b.pdf" \
-  --output result.pdf
-```
-
-返回 `Content-Type`：
-
-- `json` -> `application/json`
-- `html` -> `text/html`
-- `pdf-annotated` / `pdf-image-marked` -> `application/pdf`
-
-### 3. 异步比较
-
-`POST /api/compare/async`
-
-返回示例：
-
-```json
-{
-  "jobId": "xxxx",
-  "statusUrl": "/api/compare/xxxx/status"
-}
-```
-
-### 4. 查询任务状态
-
-`GET /api/compare/{jobId}/status`
-
-返回内容包含：
-
-- `jobId`
-- `status`
-- `progress`
-- `warnings`
-- `imageComparisonSummary`
-
-当前任务状态类型：
-
-- `PENDING`
-- `RUNNING`
-- `DONE`
-- `FAILED`
-
-### 5. 下载异步任务报告
-
-`GET /api/compare/{jobId}/report/{format}`
-
-说明：
-
-- 只有任务状态为 `DONE` 才能下载
-- 当前实现下载时使用的是 `CompareOptions.defaults()` 来渲染报告，而不是任务原始 options
-
-### Web 服务运行约束
-
-从 `JobStore` 实现看：
-
-- 最大并发任务数为 `10`
-- 任务结果保留时间为 `30` 分钟
-- 超出并发时返回 `429`
-
-## 4.4 MCP 使用方式
-
-MCP Server 主类：
-
-```text
-org.sainm.mcp.PdfCompareMcpServer
-```
-
-它通过标准输入输出启动 MCP 传输层。
-
-已暴露工具如下。
-
-### `compare_pdfs`
-
-输入字段：
-
-- `fileA`
-- `fileB`
-- `inputType`：`path` 或 `base64`
-- `options`：可选
-
-返回字段：
-
-- `jobId`
-- `items`
-- `summary`
-- `ocrFailedPages`
-- `imageComparisonSummary`
-- `visualDiffItems`
-- `pageSummaries`
-- `warnings`
-
-### `get_diff_summary`
-
-输入字段：
-
-- `jobId`
-- `language`：默认 `zh`
-
-返回字段：
-
-- `jobId`
-- `summary`
-- `countBySeverity`
-- `totalDiffs`
-
-### `get_page_diff`
-
-输入字段：
-
-- `jobId`
-- `page`
-
-当前实现说明：
-
-- `page` 参数已预留
-- 目前尚未真正做按页过滤，返回的是全部 diff items
-
-## 5. SPI 与扩展机制
-
-这个工程大量使用 `ServiceLoader` 做扩展装配。
-
-## 5.1 OCR Provider
-
-接口：
+### Write JSON Output
 
 ```java
-public interface OcrProvider {
-    List<TextBlock> recognize(BufferedImage image, OcrOptions options);
-    String providerId();
-    boolean isAvailable();
-    int priority();
-}
+import org.sainm.spi.ReportRenderer;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ServiceLoader;
+
+ReportRenderer renderer = ServiceLoader.load(ReportRenderer.class).stream()
+    .map(ServiceLoader.Provider::get)
+    .filter(r -> r.formatId().equals("json"))
+    .findFirst()
+    .orElseThrow();
+
+byte[] output = renderer.render(result, options);
+Files.write(Path.of("compare-result.json"), output);
 ```
 
-当前实现：
-
-- `org.sainm.ocr.paddle.PaddleOcrProvider`
-- `org.sainm.ocr.remote.RemoteOcrProvider`
-
-说明：
-
-- OCR Provider 是按 classpath 中注册的 SPI 自动发现的
-- 优先级高的 provider 会优先被选中
-- 如果没有可用 OCR provider，图像页会标记为 `OCR_FAILED`
-
-## 5.2 ReportRenderer
-
-接口：
+### Write HTML Output
 
 ```java
-public interface ReportRenderer {
-    byte[] render(CompareResult result, CompareOptions options);
-    String formatId();
-}
+ReportRenderer renderer = ServiceLoader.load(ReportRenderer.class).stream()
+    .map(ServiceLoader.Provider::get)
+    .filter(r -> r.formatId().equals("html"))
+    .findFirst()
+    .orElseThrow();
+
+byte[] output = renderer.render(result, options);
+Files.write(Path.of("compare-result.html"), output);
 ```
 
-当前实现：
+### Write PDF Output
 
-- `JsonRenderer`
-- `HtmlRenderer`
-- `PdfAnnotationRenderer`
-- `ImageMarkedPdfRenderer`
-
-## 5.3 Normalizer
-
-接口：
+Recommended:
 
 ```java
-public interface Normalizer {
-    String normalize(String text, CompareOptions options);
-    int order();
-}
+ReportRenderer renderer = ServiceLoader.load(ReportRenderer.class).stream()
+    .map(ServiceLoader.Provider::get)
+    .filter(r -> r.formatId().equals("pdf-image-marked"))
+    .findFirst()
+    .orElseThrow();
+
+byte[] output = renderer.render(result, options);
+Files.write(Path.of("compare-result.pdf"), output);
 ```
 
-当前已注册：
+This is the most direct Java-side example for "compare two PDFs and export a PDF report".
 
-- `WhitespaceNormalizer`
-- `GlyphNormalizer`
-- `NumberNormalizer`
-- `DateNormalizer`
-- `UnitNormalizer`
+## Text PDF Layout Examples In Core
 
-## 5.4 AI 扩展接口
+If what you want is specifically the text-comparison PDF layouts in `core`, use `DiffReportPdfGenerator` instead of `ReportRenderer`.
 
-接口包括：
-
-- `OcrEnhancer`
-- `DiffInterpreter`
-- `TableStructureRecognizer`
-
-当前 `ai` 模块中已有：
-
-- `ClaudeOcrEnhancer`
-- `ClaudeDiffInterpreter`
-- `ClaudeTableStructureRecognizer`
-
-## 6. 核心处理流程
-
-`PdfComparator.compare()` 的实际执行流程如下：
-
-```text
-CompareRequest
-  -> PdfSource 转字节
-  -> PdfExtractorFactory 提取页面内容
-  -> PreprocessorChain 预处理
-  -> NormalizerChain 归一化
-  -> TableReconstructor 表格重建
-  -> DocumentStructurer 逻辑文档结构化
-  -> AlignmentEngine 对齐
-  -> DiffEngine 生成差异
-  -> ImagePageComparator 生成视觉差异
-  -> CompareResult
-```
-
-处理结果中会同时给出：
-
-- 文本 / 表格差异
-- 图像页面视觉差异
-- OCR 失败页
-- 页级摘要
-- 严重级别统计
-
-## 7. 报告格式说明
-
-### `json`
-
-最完整、最适合程序处理的输出格式，直接序列化 `CompareResult`。
-
-### `html`
-
-适合人工查看，显示：
-
-- 差异项
-- 严重级别
-- 字符级 diff
-- 表格 diff
-- 图像页差异摘要
-
-### `pdf-annotated`
-
-接口已经接好，但当前 `PdfAnnotationRenderer.annotateItem()` 还是空实现，因此目前更接近“占位版本”。
-
-### `pdf-image-marked`
-
-当前是更实用的 PDF 输出方式，会：
-
-- 将 A / B 两份 PDF 页面并排渲染
-- 用色框标记表格 / 文本差异
-- 用蓝框标记视觉差异区域
-
-## 8. 当前实现中的注意点
-
-这些内容是根据代码当前状态整理的，写在这里便于后续使用时少踩坑。
-
-- `cli`、`web`、`mcp` 模块本身只直接依赖 `core`，OCR / AI 能力是否生效取决于运行时 classpath 是否把 `ocr-paddle`、`ocr-remote`、`ai` 等模块一起带上。
-- `ImagePdfExtractor` 当前是按 provider 优先级自动选择 OCR 实现；虽然 `OcrOptions.ProviderType` 已定义，但核心提取流程里还没有基于这个枚举做强制路由。
-- `PdfExtractorFactory.extractStreaming()` 目前只是预留，实际仍回落到 `extractAll()`。
-- `CompareProgressListener` 字段已经出现在 `PdfComparator` 中，但当前核心流程并没有真正上报进度，因此 Web 的 `progress` 目前不会反映细粒度进度。
-- `get_page_diff` 的按页过滤还没真正实现。
-- `pdf-annotated` 报告还没有完成真实标注绘制。
-
-## 9. 推荐使用姿势
-
-如果你只是想把工程先跑起来，建议优先这样用：
-
-1. 先用 `core` 或 `cli` 验证基础文本比对能力。
-2. 如果要处理扫描件或图片型 PDF，再把 `ocr-paddle` 或 `ocr-remote` 放到运行时 classpath。
-3. 如果要对外提供服务，用 `web` 模块。
-4. 如果要接入 Agent / LLM 调用链，用 `mcp` 模块。
-
-如果你要二次开发，推荐从下面几个类开始读：
-
-- `org.sainm.pipeline.PdfComparator`
-- `org.sainm.extractor.PdfExtractorFactory`
-- `org.sainm.document.DocumentStructurer`
-- `org.sainm.alignment.AlignmentEngine`
-- `org.sainm.diff.DiffEngine`
-- `org.sainm.report.ImageMarkedPdfRenderer`
-
-## 10. 一段最小可运行示例
+### Shared Setup
 
 ```java
+import org.sainm.model.CompareOptions;
 import org.sainm.model.CompareRequest;
 import org.sainm.model.CompareResult;
 import org.sainm.model.PdfSource;
 import org.sainm.pipeline.PdfComparator;
+import org.sainm.report.DiffReportPdfGenerator;
+import org.sainm.report.ReportMode;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class Demo {
-    public static void main(String[] args) {
-        CompareResult result = new PdfComparator().compare(
-            new CompareRequest(
-                new PdfSource.FilePath(Path.of("a.pdf")),
-                new PdfSource.FilePath(Path.of("b.pdf"))
-            )
-        );
+CompareOptions options = CompareOptions.defaults();
 
-        System.out.println("jobId = " + result.getJobId());
-        System.out.println("diffs = " + result.getItems().size());
-        System.out.println("summary = " + result.getSummary());
-    }
-}
+byte[] bytesA = Files.readAllBytes(Path.of("docs/a.pdf"));
+byte[] bytesB = Files.readAllBytes(Path.of("docs/b.pdf"));
+
+CompareResult result = new PdfComparator().compare(
+    new CompareRequest(
+        new PdfSource.Bytes(bytesA),
+        new PdfSource.Bytes(bytesB),
+        options
+    )
+);
 ```
 
-如果后续要继续完善这个工程，最值得优先补强的点通常会是：
+### Default Text Diff PDF
 
-- 运行时装配方式说明与打包方式统一
-- `pdf-annotated` 真正标注实现
-- `ProviderType` 强制选择 OCR provider
-- Web / MCP 的进度和按页查询能力
-- 流式提取与大文件处理
+```java
+byte[] pdf = new DiffReportPdfGenerator()
+    .mode(ReportMode.TEXT_DIFF)
+    .generate(result, bytesA, bytesB);
+
+Files.write(Path.of("report-text-diff.pdf"), pdf);
+```
+
+### Available Text PDF Modes
+
+- `TEXT_DIFF`: text-oriented diff PDF
+- `SIDE_BY_SIDE`: original and revised content shown side by side
+- `SINGLE_PAGE`: merged single-page comparison layout
+- `DUAL_PAGE`: original page and revised page rendered as separate pages
+- `HTML`: HTML diff output from the same generator family
+- `TEXT_LAYOUT`: layout-aware text rendering mode
+
+### Example: TEXT_DIFF
+
+```java
+byte[] pdf = new DiffReportPdfGenerator()
+    .mode(ReportMode.TEXT_DIFF)
+    .generate(result, bytesA, bytesB);
+Files.write(Path.of("report-text-diff.pdf"), pdf);
+```
+
+### Example: SIDE_BY_SIDE
+
+```java
+byte[] pdf = new DiffReportPdfGenerator()
+    .mode(ReportMode.SIDE_BY_SIDE)
+    .generate(result, bytesA, bytesB);
+Files.write(Path.of("report-side-by-side.pdf"), pdf);
+```
+
+### Example: SINGLE_PAGE
+
+```java
+byte[] pdf = new DiffReportPdfGenerator()
+    .mode(ReportMode.SINGLE_PAGE)
+    .generate(result, bytesA, bytesB);
+Files.write(Path.of("report-single-page.pdf"), pdf);
+```
+
+### Example: DUAL_PAGE
+
+```java
+byte[] pdf = new DiffReportPdfGenerator()
+    .mode(ReportMode.DUAL_PAGE)
+    .generate(result, bytesA, bytesB);
+Files.write(Path.of("report-dual-page.pdf"), pdf);
+```
+
+### Example: HTML
+
+```java
+byte[] html = new DiffReportPdfGenerator()
+    .mode(ReportMode.HTML)
+    .generate(result, bytesA, bytesB);
+Files.write(Path.of("report.html"), html);
+```
+
+### Example: TEXT_LAYOUT
+
+```java
+byte[] pdf = new DiffReportPdfGenerator()
+    .mode(ReportMode.TEXT_LAYOUT)
+    .generate(result, bytesA, bytesB);
+Files.write(Path.of("report-text-layout.pdf"), pdf);
+```
+
+So yes: if your render path is based on `DiffReportPdfGenerator`, then different PDF outputs such as `DualPageRenderer` being different is expected and correct.
+
+### One Comparison, Multiple Artifacts
+
+```java
+import org.sainm.spi.ReportRenderer;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.ServiceLoader;
+import java.util.stream.Collectors;
+
+Map<String, ReportRenderer> renderers = ServiceLoader.load(ReportRenderer.class).stream()
+    .map(ServiceLoader.Provider::get)
+    .collect(Collectors.toMap(ReportRenderer::formatId, r -> r));
+
+Files.write(Path.of("compare-result.json"), renderers.get("json").render(result, options));
+Files.write(Path.of("compare-result.html"), renderers.get("html").render(result, options));
+Files.write(Path.of("compare-result.pdf"), renderers.get("pdf-image-marked").render(result, options));
+```
+
+## Web API Usage
+
+The `web` module exposes HTTP endpoints for upload-and-compare workflows.
+
+Start the service:
+
+```bash
+gradle :web:bootRun
+```
+
+Default server port:
+
+```text
+8080
+```
+
+### Synchronous Compare Returning JSON
+
+```bash
+curl -X POST "http://localhost:8080/api/compare" \
+  -F "fileA=@docs/contract-v1.pdf" \
+  -F "fileB=@docs/contract-v2.pdf"
+```
+
+### Synchronous Compare Returning PDF
+
+This is the most direct HTTP example for producing a PDF output:
+
+```bash
+curl -X POST "http://localhost:8080/api/compare/artifact/pdf-image-marked" \
+  -F "fileA=@docs/contract-v1.pdf" \
+  -F "fileB=@docs/contract-v2.pdf" \
+  --output compare-result.pdf
+```
+
+### Return HTML Instead
+
+```bash
+curl -X POST "http://localhost:8080/api/compare/artifact/html" \
+  -F "fileA=@docs/contract-v1.pdf" \
+  -F "fileB=@docs/contract-v2.pdf" \
+  --output compare-result.html
+```
+
+### Return JSON Artifact Instead
+
+```bash
+curl -X POST "http://localhost:8080/api/compare/artifact/json" \
+  -F "fileA=@docs/contract-v1.pdf" \
+  -F "fileB=@docs/contract-v2.pdf" \
+  --output compare-result.json
+```
+
+### Send Compare Options
+
+Example with multipart `options` JSON:
+
+```bash
+curl -X POST "http://localhost:8080/api/compare" \
+  -F "fileA=@docs/a.pdf" \
+  -F "fileB=@docs/b.pdf" \
+  -F 'options={"fuzzyThreshold":0.9,"ignoreWhitespace":true,"enableVisualDiff":true,"renderDpi":150};type=application/json'
+```
+
+## Current Notes
+
+- For text PDFs, start with default options before tuning OCR.
+- For final PDF export, prefer `pdf-image-marked`.
+- `pdf-annotated` exists as an output id, but `pdf-image-marked` is currently the safer recommendation.
+- OCR and AI modules only take effect when their modules are present on the runtime classpath.
+- `core` now respects `OcrOptions.providerType` when selecting OCR providers.
+
+## Best Starting Points In Code
+
+- [`PdfComparator.java`](/D:/pdf-delta/core/src/main/java/org/sainm/pipeline/PdfComparator.java)
+- [`CompareOptions.java`](/D:/pdf-delta/core/src/main/java/org/sainm/model/CompareOptions.java)
+- [`CompareCommand.java`](/D:/pdf-delta/cli/src/main/java/org/sainm/cli/CompareCommand.java)
+- [`ImageMarkedPdfRenderer.java`](/D:/pdf-delta/core/src/main/java/org/sainm/report/ImageMarkedPdfRenderer.java)
